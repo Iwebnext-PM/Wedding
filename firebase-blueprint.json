@@ -1,0 +1,197 @@
+{
+  "entities": {
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Global studio branding, hero copy, about story, contact info, social links, and SEO metadata for TWINS.",
+      "type": "object",
+      "properties": {
+        "brandName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "logoUrl": { "type": "string", "maxLength": 900000 },
+        "heroHeadline": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "heroSubheadline": { "type": "string", "minLength": 3, "maxLength": 280 },
+        "heroBanners": { "type": "array", "description": "Up to 6 hero photography URLs" },
+        "aboutEyebrow": { "type": "string", "maxLength": 80 },
+        "aboutHeading": { "type": "string", "maxLength": 160 },
+        "aboutStory": { "type": "string", "maxLength": 3000 },
+        "aboutPhilosophy": { "type": "string", "maxLength": 2000 },
+        "aboutImageUrl": { "type": "string", "maxLength": 900000 },
+        "photographerNames": { "type": "string", "maxLength": 120 },
+        "photographerBio": { "type": "string", "maxLength": 1500 },
+        "contactEmail": { "type": "string", "maxLength": 160 },
+        "contactPhone": { "type": "string", "maxLength": 60 },
+        "studioAddress": { "type": "string", "maxLength": 240 },
+        "instagramUrl": { "type": "string", "maxLength": 300 },
+        "behanceUrl": { "type": "string", "maxLength": 300 },
+        "pinterestUrl": { "type": "string", "maxLength": 300 },
+        "seoTitle": { "type": "string", "maxLength": 120 },
+        "seoDescription": { "type": "string", "maxLength": 320 },
+        "seoOgImage": { "type": "string", "maxLength": 900000 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "brandName",
+        "heroHeadline",
+        "heroSubheadline",
+        "heroBanners",
+        "aboutHeading",
+        "aboutStory",
+        "contactEmail",
+        "seoTitle",
+        "seoDescription",
+        "updatedAt"
+      ]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Photography portfolio category.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 80, "pattern": "^[a-z0-9\\-]+$" },
+        "description": { "type": "string", "maxLength": 300 },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug", "order", "createdAt", "updatedAt"]
+    },
+    "PortfolioItem": {
+      "title": "PortfolioItem",
+      "description": "Individual photograph displayed in the masonry gallery and lightbox.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "categoryId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "categoryName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "imageUrl": { "type": "string", "minLength": 1, "maxLength": 900000 },
+        "aspectRatio": { "type": "string", "enum": ["portrait", "landscape", "square"] },
+        "location": { "type": "string", "maxLength": 120 },
+        "cameraSpecs": { "type": "string", "maxLength": 120 },
+        "year": { "type": "string", "maxLength": 10 },
+        "featured": { "type": "boolean" },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "categoryId", "categoryName", "imageUrl", "aspectRatio", "featured", "order", "createdAt", "updatedAt"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Editorial featured photography story with cover and gallery images.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 100, "pattern": "^[a-z0-9\\-]+$" },
+        "categoryName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "location": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "dateLabel": { "type": "string", "maxLength": 60 },
+        "clientName": { "type": "string", "maxLength": 120 },
+        "summary": { "type": "string", "minLength": 10, "maxLength": 600 },
+        "editorialNotes": { "type": "string", "maxLength": 3000 },
+        "coverImageUrl": { "type": "string", "minLength": 1, "maxLength": 900000 },
+        "galleryImages": { "type": "array", "description": "Up to 8 gallery image URLs" },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "categoryName", "location", "summary", "coverImageUrl", "galleryImages", "order", "createdAt", "updatedAt"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Photography service package offered by TWINS.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 100, "pattern": "^[a-z0-9\\-]+$" },
+        "description": { "type": "string", "minLength": 10, "maxLength": 600 },
+        "deliverables": { "type": "string", "maxLength": 240 },
+        "startingPrice": { "type": "string", "maxLength": 60 },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "description", "order", "createdAt", "updatedAt"]
+    },
+    "Testimonial": {
+      "title": "Testimonial",
+      "description": "Client review and rating.",
+      "type": "object",
+      "properties": {
+        "clientName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "clientRole": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "quote": { "type": "string", "minLength": 10, "maxLength": 1000 },
+        "rating": { "type": "number" },
+        "avatarUrl": { "type": "string", "maxLength": 900000 },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientName", "clientRole", "quote", "rating", "order", "createdAt", "updatedAt"]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "Client booking inquiry submitted via the public contact form.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "email": { "type": "string", "minLength": 5, "maxLength": 160 },
+        "phone": { "type": "string", "minLength": 5, "maxLength": 40 },
+        "eventDate": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "serviceName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "location": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "message": { "type": "string", "minLength": 5, "maxLength": 2000 },
+        "status": { "type": "string", "enum": ["new", "reviewed", "booked", "archived"] },
+        "adminNotes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "phone", "eventDate", "serviceName", "location", "message", "status", "createdAt", "updatedAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized studio administrator record.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "minLength": 5, "maxLength": 160 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "addedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/siteSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/SiteSettings" },
+      "description": "Publicly readable studio settings; writable only by verified admins."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Publicly readable portfolio categories; writable only by verified admins."
+    },
+    "/portfolioItems/{itemId}": {
+      "schema": { "$ref": "#/entities/PortfolioItem" },
+      "description": "Publicly readable portfolio images; writable only by verified admins."
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Publicly readable featured projects; writable only by verified admins."
+    },
+    "/services/{serviceId}": {
+      "schema": { "$ref": "#/entities/Service" },
+      "description": "Publicly readable photography services; writable only by verified admins."
+    },
+    "/testimonials/{testimonialId}": {
+      "schema": { "$ref": "#/entities/Testimonial" },
+      "description": "Publicly readable client testimonials; writable only by verified admins."
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": { "$ref": "#/entities/Inquiry" },
+      "description": "PII-protected client booking inquiries. Visitors may only create with status='new'; only verified admins may read, update, or delete."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Verified studio administrators; readable and writable only by verified admins."
+    }
+  }
+}

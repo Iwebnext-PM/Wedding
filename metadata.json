@@ -1,0 +1,6 @@
+{
+  "name": "TWINS — Luxury Photography & Visual Storytelling",
+  "description": "Minimalist luxury photography portfolio and booking studio for TWINS, specializing in weddings, editorial fashion, portraits, and commercial storytelling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
