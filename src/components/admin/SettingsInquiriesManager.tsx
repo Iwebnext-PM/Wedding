@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useStudio } from '../../context/StudioContext';
-import { optimizeImageFile } from '../../lib/imageUtils';
+import { isVideoUrl, optimizeImageFile } from '../../lib/imageUtils';
 import type { InquiryStatus, SiteSettings } from '../../types/studio';
 import { ImageUploaderField } from './ImageUploaderField';
 
@@ -306,8 +306,8 @@ export function StudioSettingsManager() {
                   type="url"
                   value={bannerUrlInput}
                   onChange={(e) => setBannerUrlInput(e.target.value)}
-                  placeholder="Or paste banner URL..."
-                  className="px-3 py-2 bg-[#FAF8F5] border border-[#DFD8CC] text-xs w-52"
+                  placeholder="Or paste image or .mp4 video URL..."
+                  className="px-3 py-2 bg-[#FAF8F5] border border-[#DFD8CC] text-xs w-56"
                 />
                 <button
                   type="button"
@@ -330,12 +330,23 @@ export function StudioSettingsManager() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {draft.heroBanners.map((url, idx) => (
                 <div key={`${url.slice(0, 20)}-${idx}`} className="relative aspect-[16/9] bg-[#181715]">
-                  <img
-                    src={url}
-                    alt={`Hero banner ${idx + 1}`}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                  />
+                  {isVideoUrl(url) ? (
+                    <video
+                      src={url}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={url}
+                      alt={`Hero banner ${idx + 1}`}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={() =>

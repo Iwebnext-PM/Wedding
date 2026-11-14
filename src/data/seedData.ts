@@ -26,7 +26,9 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   logoUrl: '',
   heroHeadline: 'CAPTURING MOMENTS. CREATING MEMORIES.',
   heroSubheadline: 'Every photograph tells a story. Let us capture yours.',
-  heroBanners: [heroWeddingImg, heroFashionImg, preweddingCliffsImg],
+  heroBanners: [
+    'https://eutjbha52p9qjdgo.public.blob.vercel-storage.com/Create_video_for_wedding_studio_c3dfa273.mp4',
+  ],
   aboutEyebrow: 'The Studio',
   aboutHeading: 'Two perspectives, one shared visual language.',
   aboutStory:

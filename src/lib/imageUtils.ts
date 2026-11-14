@@ -1,5 +1,10 @@
 import { BLUEPRINT_LIMITS } from '../types/studio';
 
+export function isVideoUrl(url: string): boolean {
+  if (!url) return false;
+  return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url.trim()) || url.startsWith('data:video/');
+}
+
 export function toSlug(input: string): string {
   const cleaned = input
     .toLowerCase()

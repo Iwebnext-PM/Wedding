@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowDownRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStudio } from '../context/StudioContext';
+import { isVideoUrl } from '../lib/imageUtils';
 
 interface HeroSectionProps {
   onExplorePortfolio: () => void;
@@ -12,6 +13,11 @@ export function HeroSection({ onExplorePortfolio, onBookSession }: HeroSectionPr
   const { siteSettings } = useStudio();
   const banners = siteSettings.heroBanners.length > 0 ? siteSettings.heroBanners : [];
   const [activeIndex, setActiveIndex] = useState(0);
+  const [videoFailed, setVideoFailed] = useState(false);
+
+  useEffect(() => {
+    setVideoFailed(false);
+  }, [activeIndex, banners]);
 
   useEffect(() => {
     if (banners.length <= 1) return;
@@ -28,27 +34,43 @@ export function HeroSection({ onExplorePortfolio, onBookSession }: HeroSectionPr
   }, [banners.length, activeIndex]);
 
   const currentBanner = banners[activeIndex] || '';
+  const isCurrentVideo = isVideoUrl(currentBanner) && !videoFailed;
 
   return (
     <section id="home" className="relative bg-[#0A0A0A] text-[#FAF8F5] overflow-hidden">
       <div className="relative min-h-[88vh] lg:min-h-[92vh] flex items-end pb-16 sm:pb-24 pt-28">
-        {/* Background Slideshow */}
+        {/* Background Video / Slideshow */}
         <AnimatePresence mode="sync">
           {currentBanner ? (
             <motion.div
-              key={`${activeIndex}-${currentBanner.slice(0, 32)}`}
-              initial={{ opacity: 0, scale: 1.04 }}
+              key={`${activeIndex}-${currentBanner.slice(0, 48)}`}
+              initial={{ opacity: 0, scale: isCurrentVideo ? 1 : 1.04 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
               className="absolute inset-0"
             >
-              <img
-                src={currentBanner}
-                alt={`${siteSettings.brandName} editorial showcase ${activeIndex + 1}`}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover object-center"
-              />
+              {isCurrentVideo ? (
+                <video
+                  src={currentBanner}
+                  poster={siteSettings.seoOgImage || undefined}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="auto"
+                  onError={() => setVideoFailed(true)}
+                  aria-label={`${siteSettings.brandName} studio showreel`}
+                  className="w-full h-full object-cover object-center"
+                />
+              ) : (
+                <img
+                  src={videoFailed && siteSettings.seoOgImage ? siteSettings.seoOgImage : currentBanner}
+                  alt={`${siteSettings.brandName} editorial showcase ${activeIndex + 1}`}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover object-center"
+                />
+              )}
             </motion.div>
           ) : (
             <div className="absolute inset-0 bg-[#141414]" />
