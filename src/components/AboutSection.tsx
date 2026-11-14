@@ -1,9 +1,17 @@
 import React from 'react';
 import { useStudio } from '../context/StudioContext';
 import { ResilientImage } from './ResilientImage';
+import type { HomepageSectionConfig } from '../types/studio';
 
-export function AboutSection() {
+interface AboutSectionProps {
+  sectionConfig?: HomepageSectionConfig;
+}
+
+export function AboutSection({ sectionConfig }: AboutSectionProps) {
   const { siteSettings } = useStudio();
+
+  const eyebrow = sectionConfig?.eyebrow?.trim() || siteSettings.aboutEyebrow || 'The Studio';
+  const heading = sectionConfig?.heading?.trim() || siteSettings.aboutHeading;
 
   return (
     <section id="about" className="bg-[#FAF8F5] text-[#111111] py-20 sm:py-28 border-b border-[#E5DFD5]">
@@ -13,11 +21,11 @@ export function AboutSection() {
           <div className="lg:col-span-6">
             <div className="relative h-full min-h-[380px] sm:min-h-[480px] lg:min-h-[560px]">
               <ResilientImage
-                src={siteSettings.aboutImageUrl || ''}
-                alt={siteSettings.photographerNames || 'TWINS studio founders'}
+                src={sectionConfig?.imageUrl || siteSettings.aboutImageUrl || ''}
+                alt={siteSettings.photographerNames || `${siteSettings.brandName} studio founders`}
                 containerClassName="w-full h-full"
                 className="w-full h-full object-cover"
-                fallbackTitle="TWINS Studio"
+                fallbackTitle={siteSettings.brandName || 'TWINS Studio'}
               />
             </div>
           </div>
@@ -26,11 +34,11 @@ export function AboutSection() {
           <div className="lg:col-span-6 flex flex-col justify-between py-2">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-[#786651] font-medium mb-4">
-                {siteSettings.aboutEyebrow || 'The Studio'}
+                {eyebrow}
               </p>
 
               <h2 className="font-editorial text-3xl sm:text-4xl lg:text-5xl leading-[1.08] tracking-[-0.01em] text-[#111111] [text-wrap:balance]">
-                {siteSettings.aboutHeading}
+                {heading}
               </h2>
 
               <div className="mt-8 space-y-5 text-[15px] sm:text-base leading-[1.75] text-[#3A3733] max-w-[62ch]">

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import {
   User,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithPopup,
   signOut,
 } from 'firebase/auth';
@@ -16,6 +17,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import {
@@ -28,7 +30,10 @@ import {
   testFirestoreConnection,
 } from '../lib/firebase';
 import {
+  DEFAULT_ALBUMS,
   DEFAULT_CATEGORIES,
+  DEFAULT_MEDIA_ASSETS,
+  DEFAULT_PAGES,
   DEFAULT_PORTFOLIO_ITEMS,
   DEFAULT_PROJECTS,
   DEFAULT_SERVICES,
@@ -36,10 +41,15 @@ import {
   DEFAULT_TESTIMONIALS,
 } from '../data/seedData';
 import type {
+  ActivityLog,
+  AdminRole,
   AdminUser,
+  Album,
   Category,
+  CustomPage,
   Inquiry,
   InquiryStatus,
+  MediaAsset,
   PortfolioItem,
   Project,
   Service,
@@ -47,28 +57,50 @@ import type {
   Testimonial,
 } from '../types/studio';
 
+export interface BackupSnapshot {
+  version: string;
+  exportedAt: string;
+  siteSettings: Omit<SiteSettings, 'id' | 'updatedAt'>;
+  categories: Omit<Category, 'createdAt' | 'updatedAt'>[];
+  albums: Omit<Album, 'createdAt' | 'updatedAt'>[];
+  portfolioItems: Omit<PortfolioItem, 'createdAt' | 'updatedAt'>[];
+  projects: Omit<Project, 'createdAt' | 'updatedAt'>[];
+  services: Omit<Service, 'createdAt' | 'updatedAt'>[];
+  testimonials: Omit<Testimonial, 'createdAt' | 'updatedAt'>[];
+  pages: Omit<CustomPage, 'createdAt' | 'updatedAt'>[];
+  mediaAssets: Omit<MediaAsset, 'createdAt' | 'updatedAt'>[];
+}
+
 interface StudioContextValue {
   loading: boolean;
   isCloudSeeded: boolean;
   siteSettings: SiteSettings;
   categories: Category[];
+  albums: Album[];
   portfolioItems: PortfolioItem[];
   projects: Project[];
   services: Service[];
   testimonials: Testimonial[];
+  pages: CustomPage[];
+  mediaAssets: MediaAsset[];
   inquiries: Inquiry[];
   adminUsers: AdminUser[];
+  activityLogs: ActivityLog[];
 
   user: User | null;
   authReady: boolean;
   isAdmin: boolean;
+  currentAdminRole: AdminRole;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  sendAdminPasswordReset: (email: string) => Promise<void>;
 
   seedDefaultCatalog: () => Promise<void>;
   saveSiteSettings: (data: Omit<SiteSettings, 'id' | 'updatedAt'>) => Promise<void>;
   saveCategory: (id: string, data: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>, isNew: boolean) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  saveAlbum: (id: string, data: Omit<Album, 'id' | 'createdAt' | 'updatedAt'>, isNew: boolean) => Promise<void>;
+  deleteAlbum: (id: string) => Promise<void>;
   savePortfolioItem: (id: string, data: Omit<PortfolioItem, 'id' | 'createdAt' | 'updatedAt'>, isNew: boolean) => Promise<void>;
   deletePortfolioItem: (id: string) => Promise<void>;
   saveProject: (id: string, data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>, isNew: boolean) => Promise<void>;
@@ -77,6 +109,10 @@ interface StudioContextValue {
   deleteService: (id: string) => Promise<void>;
   saveTestimonial: (id: string, data: Omit<Testimonial, 'id' | 'createdAt' | 'updatedAt'>, isNew: boolean) => Promise<void>;
   deleteTestimonial: (id: string) => Promise<void>;
+  savePage: (id: string, data: Omit<CustomPage, 'id' | 'createdAt' | 'updatedAt'>, isNew: boolean) => Promise<void>;
+  deletePage: (id: string) => Promise<void>;
+  saveMediaAsset: (id: string, data: Omit<MediaAsset, 'id' | 'createdAt' | 'updatedAt'>, isNew: boolean) => Promise<void>;
+  deleteMediaAsset: (id: string) => Promise<void>;
   submitInquiry: (data: {
     name: string;
     email: string;
@@ -88,8 +124,11 @@ interface StudioContextValue {
   }) => Promise<void>;
   updateInquiry: (id: string, status: InquiryStatus, adminNotes: string) => Promise<void>;
   deleteInquiry: (id: string) => Promise<void>;
-  addAdminUser: (uid: string, email: string, displayName: string) => Promise<void>;
+  addAdminUser: (uid: string, email: string, displayName: string, role?: AdminRole) => Promise<void>;
+  updateAdminUserRole: (uid: string, role: AdminRole) => Promise<void>;
   removeAdminUser: (uid: string) => Promise<void>;
+  createBackupSnapshot: () => BackupSnapshot;
+  restoreBackupSnapshot: (snapshot: BackupSnapshot) => Promise<void>;
 }
 
 const StudioContext = createContext<StudioContextValue | undefined>(undefined);
@@ -110,34 +149,44 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
 
   const [cloudSettings, setCloudSettings] = useState<SiteSettings | null>(null);
   const [cloudCategories, setCloudCategories] = useState<Category[]>([]);
+  const [cloudAlbums, setCloudAlbums] = useState<Album[]>([]);
   const [cloudPortfolio, setCloudPortfolio] = useState<PortfolioItem[]>([]);
   const [cloudProjects, setCloudProjects] = useState<Project[]>([]);
   const [cloudServices, setCloudServices] = useState<Service[]>([]);
   const [cloudTestimonials, setCloudTestimonials] = useState<Testimonial[]>([]);
+  const [cloudPages, setCloudPages] = useState<CustomPage[]>([]);
+  const [cloudMediaAssets, setCloudMediaAssets] = useState<MediaAsset[]>([]);
 
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isAdminDocPresent, setIsAdminDocPresent] = useState(false);
+  const [currentAdminRole, setCurrentAdminRole] = useState<AdminRole>('editor');
 
-  // Verify initial connection to Firestore on boot
   useEffect(() => {
     void testFirestoreConnection();
   }, []);
 
-  // Auth listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (nextUser) => {
       setUser(nextUser);
       if (nextUser && nextUser.emailVerified) {
         if (nextUser.email === BOOTSTRAPPED_ADMIN_EMAIL) {
           setIsAdminDocPresent(true);
+          setCurrentAdminRole('super_admin');
         } else {
           try {
             const snap = await getDoc(doc(db, 'admins', nextUser.uid));
-            setIsAdminDocPresent(snap.exists());
+            if (snap.exists()) {
+              setIsAdminDocPresent(true);
+              const data = snap.data() as Partial<AdminUser>;
+              setCurrentAdminRole(data.role || 'editor');
+            } else {
+              setIsAdminDocPresent(false);
+            }
           } catch {
             setIsAdminDocPresent(false);
           }
@@ -155,7 +204,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     return user.email === BOOTSTRAPPED_ADMIN_EMAIL || isAdminDocPresent;
   }, [user, isAdminDocPresent]);
 
-  // Public content real-time listeners
+  // Public listeners
   useEffect(() => {
     let resolvedInitial = false;
     const markReady = () => {
@@ -169,7 +218,12 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       doc(db, 'siteSettings', 'studio'),
       (snap) => {
         if (snap.exists()) {
-          setCloudSettings({ id: snap.id, ...(snap.data() as Omit<SiteSettings, 'id'>) });
+          const data = snap.data() as Omit<SiteSettings, 'id'>;
+          setCloudSettings({
+            ...DEFAULT_SITE_SETTINGS,
+            ...data,
+            id: snap.id,
+          });
           setIsCloudSeeded(true);
         } else {
           setCloudSettings(null);
@@ -191,6 +245,16 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         );
       },
       (err) => handleFirestoreError(err, OperationType.LIST, 'categories')
+    );
+
+    const unsubAlbums = onSnapshot(
+      query(collection(db, 'albums'), orderBy('order', 'asc')),
+      (snap) => {
+        setCloudAlbums(
+          snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Album, 'id'>) }))
+        );
+      },
+      (err) => handleFirestoreError(err, OperationType.LIST, 'albums')
     );
 
     const unsubPortfolio = onSnapshot(
@@ -236,6 +300,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     return () => {
       unsubSettings();
       unsubCategories();
+      unsubAlbums();
       unsubPortfolio();
       unsubProjects();
       unsubServices();
@@ -243,11 +308,32 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Admin-only listeners (PII protected inquiries + admins)
+  // Pages listener (admins see all drafts+published; public visitors query status == 'published')
+  useEffect(() => {
+    if (!authReady) return;
+    const pagesQuery = isAdmin
+      ? query(collection(db, 'pages'), orderBy('order', 'asc'))
+      : query(collection(db, 'pages'), where('status', '==', 'published'));
+
+    const unsubPages = onSnapshot(
+      pagesQuery,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CustomPage, 'id'>) }));
+        list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        setCloudPages(list);
+      },
+      (err) => handleFirestoreError(err, OperationType.LIST, 'pages')
+    );
+    return () => unsubPages();
+  }, [authReady, isAdmin]);
+
+  // Admin-only listeners
   useEffect(() => {
     if (!authReady || !isAdmin) {
       setInquiries([]);
       setAdminUsers([]);
+      setCloudMediaAssets([]);
+      setActivityLogs([]);
       return;
     }
 
@@ -261,6 +347,16 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       (err) => handleFirestoreError(err, OperationType.LIST, 'inquiries')
     );
 
+    const unsubMedia = onSnapshot(
+      query(collection(db, 'mediaAssets'), orderBy('createdAt', 'desc')),
+      (snap) => {
+        setCloudMediaAssets(
+          snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<MediaAsset, 'id'>) }))
+        );
+      },
+      (err) => handleFirestoreError(err, OperationType.LIST, 'mediaAssets')
+    );
+
     const unsubAdmins = onSnapshot(
       collection(db, 'admins'),
       (snap) => {
@@ -271,61 +367,120 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       (err) => handleFirestoreError(err, OperationType.LIST, 'admins')
     );
 
+    const unsubLogs = onSnapshot(
+      query(collection(db, 'activityLogs'), orderBy('createdAt', 'desc')),
+      (snap) => {
+        setActivityLogs(
+          snap.docs.slice(0, 30).map((d) => ({
+            id: d.id,
+            ...(d.data() as Omit<ActivityLog, 'id'>),
+          }))
+        );
+      },
+      (err) => handleFirestoreError(err, OperationType.LIST, 'activityLogs')
+    );
+
     return () => {
       unsubInquiries();
+      unsubMedia();
       unsubAdmins();
+      unsubLogs();
     };
   }, [authReady, isAdmin]);
 
-  // Effective resolved data: uses Firestore live data when cloud is seeded, otherwise curated defaults
   const siteSettings = useMemo(
     () => cloudSettings ?? DEFAULT_SITE_SETTINGS,
     [cloudSettings]
   );
-
   const categories = useMemo(
     () => (isCloudSeeded ? cloudCategories : DEFAULT_CATEGORIES),
     [isCloudSeeded, cloudCategories]
   );
-
+  const albums = useMemo(
+    () => (isCloudSeeded ? cloudAlbums : DEFAULT_ALBUMS),
+    [isCloudSeeded, cloudAlbums]
+  );
   const portfolioItems = useMemo(
     () => (isCloudSeeded ? cloudPortfolio : DEFAULT_PORTFOLIO_ITEMS),
     [isCloudSeeded, cloudPortfolio]
   );
-
   const projects = useMemo(
     () => (isCloudSeeded ? cloudProjects : DEFAULT_PROJECTS),
     [isCloudSeeded, cloudProjects]
   );
-
   const services = useMemo(
     () => (isCloudSeeded ? cloudServices : DEFAULT_SERVICES),
     [isCloudSeeded, cloudServices]
   );
-
   const testimonials = useMemo(
     () => (isCloudSeeded ? cloudTestimonials : DEFAULT_TESTIMONIALS),
     [isCloudSeeded, cloudTestimonials]
   );
+  const pages = useMemo(
+    () => (isCloudSeeded ? cloudPages : DEFAULT_PAGES),
+    [isCloudSeeded, cloudPages]
+  );
+  const mediaAssets = useMemo(
+    () => (isCloudSeeded ? cloudMediaAssets : DEFAULT_MEDIA_ASSETS),
+    [isCloudSeeded, cloudMediaAssets]
+  );
 
-  // Sync SEO metadata dynamically from SiteSettings
+  // Sync SEO metadata, favicon, and theme CSS variables dynamically
   useEffect(() => {
     if (siteSettings.seoTitle) {
       document.title = siteSettings.seoTitle;
       const ogTitle = document.querySelector('meta[property="og:title"]');
       const twTitle = document.querySelector('meta[name="twitter:title"]');
-      if (ogTitle) ogTitle.setAttribute('content', siteSettings.seoTitle);
-      if (twTitle) twTitle.setAttribute('content', siteSettings.seoTitle);
+      if (ogTitle) ogTitle.setAttribute('content', siteSettings.seoOgTitle || siteSettings.seoTitle);
+      if (twTitle) twTitle.setAttribute('content', siteSettings.seoOgTitle || siteSettings.seoTitle);
     }
     if (siteSettings.seoDescription) {
       const desc = document.querySelector('meta[name="description"]');
       const ogDesc = document.querySelector('meta[property="og:description"]');
       const twDesc = document.querySelector('meta[name="twitter:description"]');
       if (desc) desc.setAttribute('content', siteSettings.seoDescription);
-      if (ogDesc) ogDesc.setAttribute('content', siteSettings.seoDescription);
-      if (twDesc) twDesc.setAttribute('content', siteSettings.seoDescription);
+      if (ogDesc) ogDesc.setAttribute('content', siteSettings.seoOgDescription || siteSettings.seoDescription);
+      if (twDesc) twDesc.setAttribute('content', siteSettings.seoOgDescription || siteSettings.seoDescription);
     }
-  }, [siteSettings.seoTitle, siteSettings.seoDescription]);
+    if (siteSettings.faviconUrl) {
+      let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = siteSettings.faviconUrl;
+    }
+    if (siteSettings.primaryColor) {
+      document.documentElement.style.setProperty('--twins-primary', siteSettings.primaryColor);
+    }
+    if (siteSettings.secondaryColor) {
+      document.documentElement.style.setProperty('--twins-accent', siteSettings.secondaryColor);
+    }
+  }, [
+    siteSettings.seoTitle,
+    siteSettings.seoDescription,
+    siteSettings.seoOgTitle,
+    siteSettings.seoOgDescription,
+    siteSettings.faviconUrl,
+    siteSettings.primaryColor,
+    siteSettings.secondaryColor,
+  ]);
+
+  const logActivity = async (action: string, target: string) => {
+    if (!isAdmin || !user?.email) return;
+    const id = `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    try {
+      await setDoc(doc(db, 'activityLogs', id), {
+        actorEmail: user.email.slice(0, 160),
+        action: action.slice(0, 140),
+        target: target.slice(0, 140),
+        createdAt: serverTimestamp(),
+      });
+    } catch {
+      // Non-blocking audit log
+    }
+  };
 
   const signInWithGoogle = async () => {
     await signInWithPopup(auth, googleProvider);
@@ -333,6 +488,10 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await signOut(auth);
+  };
+
+  const sendAdminPasswordReset = async (email: string) => {
+    await sendPasswordResetEmail(auth, email.trim());
   };
 
   const seedDefaultCatalog = async () => {
@@ -352,10 +511,19 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
+    for (const alb of DEFAULT_ALBUMS) {
+      const { id, createdAt: _c, updatedAt: _cu, ...albPayload } = alb;
+      batch1.set(doc(db, 'albums', id), {
+        ...stripUndefined(albPayload),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+
     try {
       await batch1.commit();
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'siteSettings/studio+categories');
+      handleFirestoreError(err, OperationType.WRITE, 'seed_catalog_batch1');
     }
 
     const batch2 = writeBatch(db);
@@ -391,9 +559,26 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         updatedAt: serverTimestamp(),
       });
     }
+    for (const pg of DEFAULT_PAGES) {
+      const { id, createdAt: _c, updatedAt: _u2, ...payload } = pg;
+      batch2.set(doc(db, 'pages', id), {
+        ...stripUndefined(payload),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    for (const asset of DEFAULT_MEDIA_ASSETS) {
+      const { id, createdAt: _c, updatedAt: _u2, ...payload } = asset;
+      batch2.set(doc(db, 'mediaAssets', id), {
+        ...stripUndefined(payload),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
 
     try {
       await batch2.commit();
+      await logActivity('Synced starter catalog', 'Firestore Studio DB');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'seed_catalog_batch2');
     }
@@ -411,6 +596,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         ...stripUndefined(data),
         updatedAt: serverTimestamp(),
       });
+      await logActivity('Updated website settings & layout', data.brandName || 'TWINS');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'siteSettings/studio');
     }
@@ -436,6 +622,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
           updatedAt: serverTimestamp(),
         });
       }
+      await logActivity(isNew ? 'Created category' : 'Updated category', data.name);
     } catch (err) {
       handleFirestoreError(err, isNew ? OperationType.CREATE : OperationType.UPDATE, `categories/${id}`);
     }
@@ -445,8 +632,45 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     await ensureCloudInitialized();
     try {
       await deleteDoc(doc(db, 'categories', id));
+      await logActivity('Deleted category', id);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `categories/${id}`);
+    }
+  };
+
+  const saveAlbum = async (
+    id: string,
+    data: Omit<Album, 'id' | 'createdAt' | 'updatedAt'>,
+    isNew: boolean
+  ) => {
+    await ensureCloudInitialized();
+    const ref = doc(db, 'albums', id);
+    try {
+      if (isNew) {
+        await setDoc(ref, {
+          ...stripUndefined(data),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await updateDoc(ref, {
+          ...stripUndefined(data),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      await logActivity(isNew ? 'Created album' : 'Updated album', data.title);
+    } catch (err) {
+      handleFirestoreError(err, isNew ? OperationType.CREATE : OperationType.UPDATE, `albums/${id}`);
+    }
+  };
+
+  const deleteAlbum = async (id: string) => {
+    await ensureCloudInitialized();
+    try {
+      await deleteDoc(doc(db, 'albums', id));
+      await logActivity('Deleted album', id);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `albums/${id}`);
     }
   };
 
@@ -470,6 +694,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
           updatedAt: serverTimestamp(),
         });
       }
+      await logActivity(isNew ? 'Published photograph' : 'Updated photograph', data.title);
     } catch (err) {
       handleFirestoreError(err, isNew ? OperationType.CREATE : OperationType.UPDATE, `portfolioItems/${id}`);
     }
@@ -479,6 +704,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     await ensureCloudInitialized();
     try {
       await deleteDoc(doc(db, 'portfolioItems', id));
+      await logActivity('Deleted photograph', id);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `portfolioItems/${id}`);
     }
@@ -504,6 +730,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
           updatedAt: serverTimestamp(),
         });
       }
+      await logActivity(isNew ? 'Created project' : 'Updated project', data.title);
     } catch (err) {
       handleFirestoreError(err, isNew ? OperationType.CREATE : OperationType.UPDATE, `projects/${id}`);
     }
@@ -513,6 +740,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     await ensureCloudInitialized();
     try {
       await deleteDoc(doc(db, 'projects', id));
+      await logActivity('Deleted project', id);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `projects/${id}`);
     }
@@ -538,6 +766,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
           updatedAt: serverTimestamp(),
         });
       }
+      await logActivity(isNew ? 'Added service' : 'Updated service', data.title);
     } catch (err) {
       handleFirestoreError(err, isNew ? OperationType.CREATE : OperationType.UPDATE, `services/${id}`);
     }
@@ -547,6 +776,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     await ensureCloudInitialized();
     try {
       await deleteDoc(doc(db, 'services', id));
+      await logActivity('Deleted service', id);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `services/${id}`);
     }
@@ -572,6 +802,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
           updatedAt: serverTimestamp(),
         });
       }
+      await logActivity(isNew ? 'Added testimonial' : 'Updated testimonial', data.clientName);
     } catch (err) {
       handleFirestoreError(err, isNew ? OperationType.CREATE : OperationType.UPDATE, `testimonials/${id}`);
     }
@@ -581,8 +812,81 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     await ensureCloudInitialized();
     try {
       await deleteDoc(doc(db, 'testimonials', id));
+      await logActivity('Deleted testimonial', id);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `testimonials/${id}`);
+    }
+  };
+
+  const savePage = async (
+    id: string,
+    data: Omit<CustomPage, 'id' | 'createdAt' | 'updatedAt'>,
+    isNew: boolean
+  ) => {
+    await ensureCloudInitialized();
+    const ref = doc(db, 'pages', id);
+    try {
+      if (isNew) {
+        await setDoc(ref, {
+          ...stripUndefined(data),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await updateDoc(ref, {
+          ...stripUndefined(data),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      await logActivity(isNew ? 'Created page' : 'Updated page', data.title);
+    } catch (err) {
+      handleFirestoreError(err, isNew ? OperationType.CREATE : OperationType.UPDATE, `pages/${id}`);
+    }
+  };
+
+  const deletePage = async (id: string) => {
+    await ensureCloudInitialized();
+    try {
+      await deleteDoc(doc(db, 'pages', id));
+      await logActivity('Deleted page', id);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `pages/${id}`);
+    }
+  };
+
+  const saveMediaAsset = async (
+    id: string,
+    data: Omit<MediaAsset, 'id' | 'createdAt' | 'updatedAt'>,
+    isNew: boolean
+  ) => {
+    await ensureCloudInitialized();
+    const ref = doc(db, 'mediaAssets', id);
+    try {
+      if (isNew) {
+        await setDoc(ref, {
+          ...stripUndefined(data),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await updateDoc(ref, {
+          ...stripUndefined(data),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      await logActivity(isNew ? 'Uploaded media' : 'Updated media', data.name);
+    } catch (err) {
+      handleFirestoreError(err, isNew ? OperationType.CREATE : OperationType.UPDATE, `mediaAssets/${id}`);
+    }
+  };
+
+  const deleteMediaAsset = async (id: string) => {
+    await ensureCloudInitialized();
+    try {
+      await deleteDoc(doc(db, 'mediaAssets', id));
+      await logActivity('Deleted media asset', id);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `mediaAssets/${id}`);
     }
   };
 
@@ -621,6 +925,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         adminNotes: adminNotes.trim().slice(0, 1000),
         updatedAt: serverTimestamp(),
       });
+      await logActivity(`Updated inquiry status to ${status}`, id);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `inquiries/${id}`);
     }
@@ -629,30 +934,151 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   const deleteInquiry = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'inquiries', id));
+      await logActivity('Deleted inquiry', id);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `inquiries/${id}`);
     }
   };
 
-  const addAdminUser = async (uid: string, email: string, displayName: string) => {
+  const addAdminUser = async (
+    uid: string,
+    email: string,
+    displayName: string,
+    role: AdminRole = 'editor'
+  ) => {
     const cleanUid = uid.trim();
     try {
       await setDoc(doc(db, 'admins', cleanUid), {
         email: email.trim().slice(0, 160),
         displayName: displayName.trim().slice(0, 100),
+        role,
         addedBy: user?.uid || 'admin',
         createdAt: serverTimestamp(),
       });
+      await logActivity(`Granted ${role} access`, email);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `admins/${cleanUid}`);
+    }
+  };
+
+  const updateAdminUserRole = async (uid: string, role: AdminRole) => {
+    try {
+      await updateDoc(doc(db, 'admins', uid), { role });
+      await logActivity(`Changed admin role to ${role}`, uid);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `admins/${uid}`);
     }
   };
 
   const removeAdminUser = async (uid: string) => {
     try {
       await deleteDoc(doc(db, 'admins', uid));
+      await logActivity('Revoked admin access', uid);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `admins/${uid}`);
+    }
+  };
+
+  const createBackupSnapshot = (): BackupSnapshot => {
+    const { id: _sId, updatedAt: _sUp, ...cleanSettings } = siteSettings;
+    return {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      siteSettings: cleanSettings,
+      categories: categories.map(({ createdAt: _c, updatedAt: _u, ...rest }) => rest),
+      albums: albums.map(({ createdAt: _c, updatedAt: _u, ...rest }) => rest),
+      portfolioItems: portfolioItems.map(({ createdAt: _c, updatedAt: _u, ...rest }) => rest),
+      projects: projects.map(({ createdAt: _c, updatedAt: _u, ...rest }) => rest),
+      services: services.map(({ createdAt: _c, updatedAt: _u, ...rest }) => rest),
+      testimonials: testimonials.map(({ createdAt: _c, updatedAt: _u, ...rest }) => rest),
+      pages: pages.map(({ createdAt: _c, updatedAt: _u, ...rest }) => rest),
+      mediaAssets: mediaAssets.map(({ createdAt: _c, updatedAt: _u, ...rest }) => rest),
+    };
+  };
+
+  const restoreBackupSnapshot = async (snapshot: BackupSnapshot) => {
+    const batch1 = writeBatch(db);
+    batch1.set(doc(db, 'siteSettings', 'studio'), {
+      ...stripUndefined(snapshot.siteSettings as Record<string, unknown>),
+      updatedAt: serverTimestamp(),
+    });
+    for (const cat of snapshot.categories || []) {
+      const { id, ...rest } = cat;
+      batch1.set(doc(db, 'categories', id), {
+        ...stripUndefined(rest as Record<string, unknown>),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    for (const alb of snapshot.albums || []) {
+      const { id, ...rest } = alb;
+      batch1.set(doc(db, 'albums', id), {
+        ...stripUndefined(rest as Record<string, unknown>),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    try {
+      await batch1.commit();
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'restore_batch1');
+    }
+
+    const batch2 = writeBatch(db);
+    for (const item of snapshot.portfolioItems || []) {
+      const { id, ...rest } = item;
+      batch2.set(doc(db, 'portfolioItems', id), {
+        ...stripUndefined(rest as Record<string, unknown>),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    for (const proj of snapshot.projects || []) {
+      const { id, ...rest } = proj;
+      batch2.set(doc(db, 'projects', id), {
+        ...stripUndefined(rest as Record<string, unknown>),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    for (const srv of snapshot.services || []) {
+      const { id, ...rest } = srv;
+      batch2.set(doc(db, 'services', id), {
+        ...stripUndefined(rest as Record<string, unknown>),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    for (const test of snapshot.testimonials || []) {
+      const { id, ...rest } = test;
+      batch2.set(doc(db, 'testimonials', id), {
+        ...stripUndefined(rest as Record<string, unknown>),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    for (const pg of snapshot.pages || []) {
+      const { id, ...rest } = pg;
+      batch2.set(doc(db, 'pages', id), {
+        ...stripUndefined(rest as Record<string, unknown>),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    for (const asset of snapshot.mediaAssets || []) {
+      const { id, ...rest } = asset;
+      batch2.set(doc(db, 'mediaAssets', id), {
+        ...stripUndefined(rest as Record<string, unknown>),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    try {
+      await batch2.commit();
+      await logActivity('Restored studio backup', snapshot.exportedAt);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'restore_batch2');
     }
   };
 
@@ -663,21 +1089,29 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         isCloudSeeded,
         siteSettings,
         categories,
+        albums,
         portfolioItems,
         projects,
         services,
         testimonials,
+        pages,
+        mediaAssets,
         inquiries,
         adminUsers,
+        activityLogs,
         user,
         authReady,
         isAdmin,
+        currentAdminRole,
         signInWithGoogle,
         logout,
+        sendAdminPasswordReset,
         seedDefaultCatalog,
         saveSiteSettings,
         saveCategory,
         deleteCategory,
+        saveAlbum,
+        deleteAlbum,
         savePortfolioItem,
         deletePortfolioItem,
         saveProject,
@@ -686,11 +1120,18 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         deleteService,
         saveTestimonial,
         deleteTestimonial,
+        savePage,
+        deletePage,
+        saveMediaAsset,
+        deleteMediaAsset,
         submitInquiry,
         updateInquiry,
         deleteInquiry,
         addAdminUser,
+        updateAdminUserRole,
         removeAdminUser,
+        createBackupSnapshot,
+        restoreBackupSnapshot,
       }}
     >
       {children}

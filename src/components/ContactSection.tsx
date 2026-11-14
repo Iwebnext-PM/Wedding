@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Mail, MapPin, Phone } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, ExternalLink, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { useStudio } from '../context/StudioContext';
-import { BLUEPRINT_LIMITS } from '../types/studio';
+import { BLUEPRINT_LIMITS, type HomepageSectionConfig } from '../types/studio';
 
 interface ContactSectionProps {
+  sectionConfig?: HomepageSectionConfig;
   preselectedService: string;
 }
 
@@ -17,15 +18,20 @@ interface FormState {
   message: string;
 }
 
-export function ContactSection({ preselectedService }: ContactSectionProps) {
+export function ContactSection({ sectionConfig, preselectedService }: ContactSectionProps) {
   const { siteSettings, services, submitInquiry } = useStudio();
+
+  const activeServices = useMemo(
+    () => services.filter((srv) => srv.enabled !== false),
+    [services]
+  );
 
   const [form, setForm] = useState<FormState>({
     name: '',
     email: '',
     phone: '',
     eventDate: '',
-    serviceName: preselectedService || services[0]?.title || 'Wedding Photography',
+    serviceName: preselectedService || activeServices[0]?.title || 'Wedding Photography',
     location: '',
     message: '',
   });
@@ -73,7 +79,7 @@ export function ContactSection({ preselectedService }: ContactSectionProps) {
         email: '',
         phone: '',
         eventDate: '',
-        serviceName: services[0]?.title || 'Wedding Photography',
+        serviceName: activeServices[0]?.title || 'Wedding Photography',
         location: '',
         message: '',
       });
@@ -86,9 +92,25 @@ export function ContactSection({ preselectedService }: ContactSectionProps) {
 
   const socialLinks = [
     { label: 'Instagram', url: siteSettings.instagramUrl },
+    { label: 'Facebook', url: siteSettings.facebookUrl },
+    { label: 'YouTube', url: siteSettings.youtubeUrl },
     { label: 'Behance', url: siteSettings.behanceUrl },
     { label: 'Pinterest', url: siteSettings.pinterestUrl },
   ].filter((item) => Boolean(item.url));
+
+  const eyebrow = sectionConfig?.eyebrow?.trim() || 'Inquiries & Commissions';
+  const heading =
+    sectionConfig?.heading?.trim() ||
+    siteSettings.contactHeading?.trim() ||
+    `Reserve Your Date With ${siteSettings.brandName || 'TWINS'}`;
+  const description =
+    sectionConfig?.subheading?.trim() ||
+    siteSettings.contactDescription?.trim() ||
+    'We accept a limited number of commissions each season to ensure personal attention from first moodboard to museum-grade print delivery.';
+
+  const cleanWhatsapp = siteSettings.whatsappNumber
+    ? siteSettings.whatsappNumber.replace(/[^\d]/g, '')
+    : '';
 
   return (
     <section id="contact" className="bg-[#FAF8F5] text-[#111111] py-20 sm:py-28">
@@ -98,14 +120,13 @@ export function ContactSection({ preselectedService }: ContactSectionProps) {
           <div className="lg:col-span-5 flex flex-col justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-[#786651] font-medium mb-3">
-                Inquiries &amp; Commissions
+                {eyebrow}
               </p>
               <h2 className="font-editorial text-3xl sm:text-5xl leading-[1.06] text-[#111111] [text-wrap:balance]">
-                Reserve Your Date With TWINS
+                {heading}
               </h2>
               <p className="mt-5 text-[15px] leading-[1.75] text-[#4A4742] max-w-md">
-                We accept a limited number of commissions each season to ensure personal attention
-                from first moodboard to museum-grade print delivery.
+                {description}
               </p>
 
               <div className="mt-10 space-y-5 border-t border-[#E5DFD5] pt-8">
@@ -137,12 +158,40 @@ export function ContactSection({ preselectedService }: ContactSectionProps) {
                   </div>
                 )}
 
+                {siteSettings.whatsappNumber && (
+                  <div className="flex items-start gap-3.5">
+                    <MessageCircle className="w-4 h-4 mt-1 text-[#786651] shrink-0" />
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.14em] text-[#6E675E]">WhatsApp Concierge</p>
+                      <a
+                        href={`https://wa.me/${cleanWhatsapp}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm font-medium text-[#111111] hover:text-[#786651] transition-colors"
+                      >
+                        {siteSettings.whatsappNumber}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 {siteSettings.studioAddress && (
                   <div className="flex items-start gap-3.5">
                     <MapPin className="w-4 h-4 mt-1 text-[#786651] shrink-0" />
                     <div>
                       <p className="text-xs uppercase tracking-[0.14em] text-[#6E675E]">Atelier</p>
                       <p className="text-sm text-[#111111]">{siteSettings.studioAddress}</p>
+                      {siteSettings.googleMapsUrl && (
+                        <a
+                          href={siteSettings.googleMapsUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 inline-flex items-center gap-1 text-xs uppercase tracking-[0.12em] text-[#786651] hover:text-[#111111] transition-colors"
+                        >
+                          <span>Open in Google Maps</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 )}
@@ -189,8 +238,8 @@ export function ContactSection({ preselectedService }: ContactSectionProps) {
                       Thank you. Your inquiry has been received.
                     </p>
                     <p className="mt-1 text-sm text-[#4A4742]">
-                      Clara and Elena review every commission personally and will respond within 24
-                      hours.
+                      Our studio principals review every commission personally and will respond
+                      within 24 hours.
                     </p>
                   </div>
                 </div>
@@ -300,7 +349,7 @@ export function ContactSection({ preselectedService }: ContactSectionProps) {
                     onChange={(e) => setForm({ ...form, serviceName: e.target.value })}
                     className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#DFD8CC] text-sm text-[#111111] focus:border-[#111111] focus:outline-none"
                   >
-                    {services.map((srv) => (
+                    {activeServices.map((srv) => (
                       <option key={srv.id} value={srv.title}>
                         {srv.title}
                       </option>

@@ -1,30 +1,48 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { useStudio } from '../context/StudioContext';
 import { ResilientImage } from './ResilientImage';
+import type { HomepageSectionConfig } from '../types/studio';
 
-export function TestimonialsSection() {
+interface TestimonialsSectionProps {
+  sectionConfig?: HomepageSectionConfig;
+}
+
+export function TestimonialsSection({ sectionConfig }: TestimonialsSectionProps) {
   const { testimonials } = useStudio();
   const [activeIndex, setActiveIndex] = useState(0);
 
+  const visibleTestimonials = useMemo(() => {
+    const published = testimonials.filter((t) => t.published !== false);
+    return [...published].sort((a, b) => {
+      const aFeat = a.featured ? 1 : 0;
+      const bFeat = b.featured ? 1 : 0;
+      if (aFeat !== bFeat) return bFeat - aFeat;
+      return (a.order ?? 0) - (b.order ?? 0);
+    });
+  }, [testimonials]);
+
   useEffect(() => {
-    if (activeIndex >= testimonials.length) {
+    if (activeIndex >= visibleTestimonials.length) {
       setActiveIndex(0);
     }
-  }, [testimonials.length, activeIndex]);
+  }, [visibleTestimonials.length, activeIndex]);
 
   useEffect(() => {
-    if (testimonials.length <= 1) return;
+    if (visibleTestimonials.length <= 1) return;
     const timer = window.setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % testimonials.length);
+      setActiveIndex((prev) => (prev + 1) % visibleTestimonials.length);
     }, 7500);
     return () => window.clearInterval(timer);
-  }, [testimonials.length]);
+  }, [visibleTestimonials.length]);
 
-  if (testimonials.length === 0) return null;
+  if (visibleTestimonials.length === 0) return null;
 
-  const current = testimonials[activeIndex] || testimonials[0];
+  const current = visibleTestimonials[activeIndex] || visibleTestimonials[0];
   const ratingValue = Math.min(5, Math.max(1, Math.round(current.rating || 5)));
+
+  const eyebrow = sectionConfig?.eyebrow?.trim() || 'Client Reflections';
+  const heading = sectionConfig?.heading?.trim() || 'Words From Our Clients';
 
   return (
     <section
@@ -35,33 +53,37 @@ export function TestimonialsSection() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-10 border-b border-white/15">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-[#D4C3AA] font-medium mb-3">
-              Client Reflections
+              {eyebrow}
             </p>
             <h2 className="font-editorial text-3xl sm:text-5xl leading-[1.06] text-[#FAF8F5]">
-              Words From Our Clients
+              {heading}
             </h2>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                setActiveIndex((prev) => (prev - 1 + testimonials.length) % testimonials.length)
-              }
-              aria-label="Previous testimonial"
-              className="w-11 h-11 flex items-center justify-center border border-white/20 text-[#FAF8F5] hover:border-[#D4C3AA] hover:text-[#D4C3AA] transition-colors cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveIndex((prev) => (prev + 1) % testimonials.length)}
-              aria-label="Next testimonial"
-              className="w-11 h-11 flex items-center justify-center border border-white/20 text-[#FAF8F5] hover:border-[#D4C3AA] hover:text-[#D4C3AA] transition-colors cursor-pointer"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          {visibleTestimonials.length > 1 && (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveIndex(
+                    (prev) => (prev - 1 + visibleTestimonials.length) % visibleTestimonials.length
+                  )
+                }
+                aria-label="Previous testimonial"
+                className="w-11 h-11 flex items-center justify-center border border-white/20 text-[#FAF8F5] hover:border-[#D4C3AA] hover:text-[#D4C3AA] transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveIndex((prev) => (prev + 1) % visibleTestimonials.length)}
+                aria-label="Next testimonial"
+                className="w-11 h-11 flex items-center justify-center border border-white/20 text-[#FAF8F5] hover:border-[#D4C3AA] hover:text-[#D4C3AA] transition-colors cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Active Testimonial Stage */}
@@ -78,7 +100,10 @@ export function TestimonialsSection() {
             </div>
 
             <div>
-              <div className="flex items-center gap-1.5 text-[#D4C3AA]" aria-label={`${ratingValue} out of 5 stars`}>
+              <div
+                className="flex items-center gap-1.5 text-[#D4C3AA]"
+                aria-label={`${ratingValue} out of 5 stars`}
+              >
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
@@ -104,10 +129,10 @@ export function TestimonialsSection() {
         </div>
 
         {/* Slide Index Bar */}
-        {testimonials.length > 1 && (
+        {visibleTestimonials.length > 1 && (
           <div className="mt-10 pt-6 border-t border-white/10 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              {testimonials.map((t, idx) => (
+              {visibleTestimonials.map((t, idx) => (
                 <button
                   key={t.id}
                   type="button"
@@ -122,7 +147,7 @@ export function TestimonialsSection() {
 
             <span className="font-mono text-xs tabular-nums text-[#B8B0A4]">
               {String(activeIndex + 1).padStart(2, '0')} /{' '}
-              {String(testimonials.length).padStart(2, '0')}
+              {String(visibleTestimonials.length).padStart(2, '0')}
             </span>
           </div>
         )}

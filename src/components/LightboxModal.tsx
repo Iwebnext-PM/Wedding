@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 export interface LightboxSlide {
   id: string;
   title: string;
+  description?: string;
   imageUrl: string;
   categoryName?: string;
   location?: string;
@@ -120,6 +121,9 @@ export function LightboxModal({
       <div className="max-w-4xl mx-auto w-full border-t border-white/10 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h3 className="font-editorial text-2xl text-[#FAF8F5]">{current.title}</h3>
+          {current.description && (
+            <p className="text-xs text-[#FAF8F5]/75 mt-1 max-w-xl">{current.description}</p>
+          )}
           {(current.location || current.year) && (
             <p className="text-xs text-[#B8B0A4] mt-0.5">
               {[current.location, current.year].filter(Boolean).join(' · ')}

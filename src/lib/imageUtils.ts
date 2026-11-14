@@ -16,6 +16,8 @@ export function toSlug(input: string): string {
   return cleaned.slice(0, 80) || 'item';
 }
 
+export const slugify = toSlug;
+
 export function toSafeId(prefix: string, label: string): string {
   const base = `${prefix}-${toSlug(label)}`.replace(/[^a-zA-Z0-9_-]/g, '-');
   const suffix = Math.random().toString(36).slice(2, 7);
@@ -30,7 +32,7 @@ export async function optimizeImageFile(
   file: File,
   maxDimension = 1600,
   initialQuality = 0.84
-): Promise<{ dataUrl: string; width: number; height: number; byteEstimate: number }> {
+): Promise<{ dataUrl: string; width: number; height: number; byteEstimate: number; sizeBytes: number }> {
   if (!file.type.startsWith('image/')) {
     throw new Error('Please choose a valid image file (JPEG, PNG, or WebP).');
   }
@@ -78,11 +80,13 @@ export async function optimizeImageFile(
     throw new Error('Image exceeds maximum compressed size. Please choose a smaller file.');
   }
 
+  const est = Math.round((dataUrl.length * 3) / 4);
   return {
     dataUrl,
     width: targetWidth,
     height: targetHeight,
-    byteEstimate: Math.round((dataUrl.length * 3) / 4),
+    byteEstimate: est,
+    sizeBytes: est,
   };
 }
 

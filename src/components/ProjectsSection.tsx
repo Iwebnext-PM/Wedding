@@ -1,15 +1,29 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { useStudio } from '../context/StudioContext';
-import type { Project } from '../types/studio';
+import type { HomepageSectionConfig, Project } from '../types/studio';
 import { ResilientImage } from './ResilientImage';
 
 interface ProjectsSectionProps {
+  sectionConfig?: HomepageSectionConfig;
   onSelectProject: (project: Project) => void;
 }
 
-export function ProjectsSection({ onSelectProject }: ProjectsSectionProps) {
+export function ProjectsSection({ sectionConfig, onSelectProject }: ProjectsSectionProps) {
   const { projects } = useStudio();
+
+  const publishedProjects = useMemo(
+    () => projects.filter((p) => p.published !== false),
+    [projects]
+  );
+
+  if (publishedProjects.length === 0) return null;
+
+  const eyebrow = sectionConfig?.eyebrow?.trim() || 'Editorial Monographs';
+  const heading = sectionConfig?.heading?.trim() || 'Featured Projects';
+  const subheading =
+    sectionConfig?.subheading?.trim() ||
+    'Extended multi-day visual stories documenting architecture, intimacy, and atmosphere around the world.';
 
   return (
     <section id="projects" className="bg-[#0A0A0A] text-[#FAF8F5] py-20 sm:py-28">
@@ -17,21 +31,18 @@ export function ProjectsSection({ onSelectProject }: ProjectsSectionProps) {
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-10 border-b border-white/15">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-[#D4C3AA] font-medium mb-3">
-              Editorial Monographs
+              {eyebrow}
             </p>
             <h2 className="font-editorial text-3xl sm:text-5xl leading-[1.06] text-[#FAF8F5] [text-wrap:balance]">
-              Featured Projects
+              {heading}
             </h2>
           </div>
 
-          <p className="text-sm text-[#B8B0A4] max-w-md leading-relaxed">
-            Extended multi-day visual stories documenting architecture, intimacy, and atmosphere
-            around the world.
-          </p>
+          <p className="text-sm text-[#B8B0A4] max-w-md leading-relaxed">{subheading}</p>
         </div>
 
         <div className="mt-14 space-y-16 sm:space-y-24">
-          {projects.map((project, index) => {
+          {publishedProjects.map((project, index) => {
             const isEven = index % 2 === 0;
             return (
               <article

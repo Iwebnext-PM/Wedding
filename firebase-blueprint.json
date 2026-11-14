@@ -2,14 +2,33 @@
   "entities": {
     "SiteSettings": {
       "title": "SiteSettings",
-      "description": "Global studio branding, hero copy, about story, contact info, social links, and SEO metadata for TWINS.",
+      "description": "Global studio branding, theme, navigation, homepage layout/copy, about story, contact info, social links, maintenance mode, and default SEO.",
       "type": "object",
       "properties": {
         "brandName": { "type": "string", "minLength": 1, "maxLength": 80 },
         "logoUrl": { "type": "string", "maxLength": 900000 },
+        "faviconUrl": { "type": "string", "maxLength": 900000 },
+        "primaryColor": { "type": "string", "maxLength": 20 },
+        "secondaryColor": { "type": "string", "maxLength": 20 },
+        "fontPreset": { "type": "string", "maxLength": 40 },
+        "loadingScreenEnabled": { "type": "boolean" },
+        "loadingScreenText": { "type": "string", "maxLength": 120 },
+        "maintenanceMode": { "type": "boolean" },
+        "maintenanceMessage": { "type": "string", "maxLength": 500 },
+        "footerTagline": { "type": "string", "maxLength": 240 },
+        "copyrightText": { "type": "string", "maxLength": 200 },
+        "headerCtaText": { "type": "string", "maxLength": 60 },
+        "headerCtaLink": { "type": "string", "maxLength": 160 },
+        "customHeadScript": { "type": "string", "maxLength": 2000 },
+        "navLinks": { "type": "array", "description": "Ordered header/footer navigation links" },
+        "homepageSections": { "type": "array", "description": "Ordered homepage sections with visibility and copy overrides" },
         "heroHeadline": { "type": "string", "minLength": 3, "maxLength": 160 },
         "heroSubheadline": { "type": "string", "minLength": 3, "maxLength": 280 },
-        "heroBanners": { "type": "array", "description": "Up to 6 hero photography URLs" },
+        "heroPrimaryCtaText": { "type": "string", "maxLength": 60 },
+        "heroPrimaryCtaLink": { "type": "string", "maxLength": 160 },
+        "heroSecondaryCtaText": { "type": "string", "maxLength": 60 },
+        "heroSecondaryCtaLink": { "type": "string", "maxLength": 160 },
+        "heroBanners": { "type": "array", "description": "Up to 6 hero photography or video URLs" },
         "aboutEyebrow": { "type": "string", "maxLength": 80 },
         "aboutHeading": { "type": "string", "maxLength": 160 },
         "aboutStory": { "type": "string", "maxLength": 3000 },
@@ -17,15 +36,26 @@
         "aboutImageUrl": { "type": "string", "maxLength": 900000 },
         "photographerNames": { "type": "string", "maxLength": 120 },
         "photographerBio": { "type": "string", "maxLength": 1500 },
+        "contactHeading": { "type": "string", "maxLength": 160 },
+        "contactDescription": { "type": "string", "maxLength": 600 },
         "contactEmail": { "type": "string", "maxLength": 160 },
         "contactPhone": { "type": "string", "maxLength": 60 },
+        "whatsappNumber": { "type": "string", "maxLength": 60 },
         "studioAddress": { "type": "string", "maxLength": 240 },
+        "googleMapsUrl": { "type": "string", "maxLength": 400 },
         "instagramUrl": { "type": "string", "maxLength": 300 },
+        "facebookUrl": { "type": "string", "maxLength": 300 },
+        "youtubeUrl": { "type": "string", "maxLength": 300 },
         "behanceUrl": { "type": "string", "maxLength": 300 },
         "pinterestUrl": { "type": "string", "maxLength": 300 },
         "seoTitle": { "type": "string", "maxLength": 120 },
         "seoDescription": { "type": "string", "maxLength": 320 },
+        "seoKeywords": { "type": "string", "maxLength": 300 },
+        "seoOgTitle": { "type": "string", "maxLength": 120 },
+        "seoOgDescription": { "type": "string", "maxLength": 320 },
         "seoOgImage": { "type": "string", "maxLength": 900000 },
+        "seoCanonicalUrl": { "type": "string", "maxLength": 300 },
+        "seoNoIndex": { "type": "boolean" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": [
@@ -55,20 +85,41 @@
       },
       "required": ["name", "slug", "order", "createdAt", "updatedAt"]
     },
+    "Album": {
+      "title": "Album",
+      "description": "Curated photography album grouping gallery frames.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 100, "pattern": "^[a-z0-9\\-]+$" },
+        "description": { "type": "string", "maxLength": 500 },
+        "coverImageUrl": { "type": "string", "maxLength": 900000 },
+        "categoryId": { "type": "string", "maxLength": 128 },
+        "published": { "type": "boolean" },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "published", "order", "createdAt", "updatedAt"]
+    },
     "PortfolioItem": {
       "title": "PortfolioItem",
       "description": "Individual photograph displayed in the masonry gallery and lightbox.",
       "type": "object",
       "properties": {
         "title": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "description": { "type": "string", "maxLength": 500 },
+        "altText": { "type": "string", "maxLength": 200 },
         "categoryId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
         "categoryName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "albumId": { "type": "string", "maxLength": 128 },
         "imageUrl": { "type": "string", "minLength": 1, "maxLength": 900000 },
         "aspectRatio": { "type": "string", "enum": ["portrait", "landscape", "square"] },
         "location": { "type": "string", "maxLength": 120 },
         "cameraSpecs": { "type": "string", "maxLength": 120 },
         "year": { "type": "string", "maxLength": 10 },
         "featured": { "type": "boolean" },
+        "published": { "type": "boolean" },
         "order": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -90,6 +141,7 @@
         "editorialNotes": { "type": "string", "maxLength": 3000 },
         "coverImageUrl": { "type": "string", "minLength": 1, "maxLength": 900000 },
         "galleryImages": { "type": "array", "description": "Up to 8 gallery image URLs" },
+        "published": { "type": "boolean" },
         "order": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -106,6 +158,10 @@
         "description": { "type": "string", "minLength": 10, "maxLength": 600 },
         "deliverables": { "type": "string", "maxLength": 240 },
         "startingPrice": { "type": "string", "maxLength": 60 },
+        "imageUrl": { "type": "string", "maxLength": 900000 },
+        "iconName": { "type": "string", "maxLength": 40 },
+        "features": { "type": "array", "description": "Up to 10 service feature bullets" },
+        "enabled": { "type": "boolean" },
         "order": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -122,11 +178,54 @@
         "quote": { "type": "string", "minLength": 10, "maxLength": 1000 },
         "rating": { "type": "number" },
         "avatarUrl": { "type": "string", "maxLength": 900000 },
+        "featured": { "type": "boolean" },
+        "published": { "type": "boolean" },
         "order": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["clientName", "clientRole", "quote", "rating", "order", "createdAt", "updatedAt"]
+    },
+    "Page": {
+      "title": "Page",
+      "description": "CMS-managed custom website page with visual blocks and SEO metadata.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 100, "pattern": "^[a-z0-9\\-]+$" },
+        "status": { "type": "string", "enum": ["draft", "published"] },
+        "sections": { "type": "array", "description": "Visual page builder blocks (max 20)" },
+        "seoTitle": { "type": "string", "maxLength": 120 },
+        "seoDescription": { "type": "string", "maxLength": 320 },
+        "seoKeywords": { "type": "string", "maxLength": 300 },
+        "ogTitle": { "type": "string", "maxLength": 120 },
+        "ogDescription": { "type": "string", "maxLength": 320 },
+        "ogImage": { "type": "string", "maxLength": 900000 },
+        "canonicalUrl": { "type": "string", "maxLength": 300 },
+        "noIndex": { "type": "boolean" },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "status", "sections", "order", "createdAt", "updatedAt"]
+    },
+    "MediaAsset": {
+      "title": "MediaAsset",
+      "description": "Centralized cloud media library item.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "url": { "type": "string", "minLength": 1, "maxLength": 900000 },
+        "mediaType": { "type": "string", "enum": ["image", "video"] },
+        "folder": { "type": "string", "maxLength": 60 },
+        "altText": { "type": "string", "maxLength": 200 },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "sizeBytes": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "url", "mediaType", "folder", "createdAt", "updatedAt"]
     },
     "Inquiry": {
       "title": "Inquiry",
@@ -140,7 +239,7 @@
         "serviceName": { "type": "string", "minLength": 2, "maxLength": 120 },
         "location": { "type": "string", "minLength": 2, "maxLength": 160 },
         "message": { "type": "string", "minLength": 5, "maxLength": 2000 },
-        "status": { "type": "string", "enum": ["new", "reviewed", "booked", "archived"] },
+        "status": { "type": "string", "enum": ["new", "contacted", "confirmed", "completed", "reviewed", "booked", "archived"] },
         "adminNotes": { "type": "string", "maxLength": 1000 },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -149,15 +248,28 @@
     },
     "AdminUser": {
       "title": "AdminUser",
-      "description": "Authorized studio administrator record.",
+      "description": "Authorized studio administrator record with role.",
       "type": "object",
       "properties": {
         "email": { "type": "string", "minLength": 5, "maxLength": 160 },
         "displayName": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "enum": ["super_admin", "editor", "moderator"] },
         "addedBy": { "type": "string", "maxLength": 128 },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["email", "createdAt"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Admin CMS activity audit entry.",
+      "type": "object",
+      "properties": {
+        "actorEmail": { "type": "string", "maxLength": 160 },
+        "action": { "type": "string", "maxLength": 140 },
+        "target": { "type": "string", "maxLength": 140 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actorEmail", "action", "target", "createdAt"]
     }
   },
   "firestore": {
@@ -168,6 +280,10 @@
     "/categories/{categoryId}": {
       "schema": { "$ref": "#/entities/Category" },
       "description": "Publicly readable portfolio categories; writable only by verified admins."
+    },
+    "/albums/{albumId}": {
+      "schema": { "$ref": "#/entities/Album" },
+      "description": "Publicly readable photography albums; writable only by verified admins."
     },
     "/portfolioItems/{itemId}": {
       "schema": { "$ref": "#/entities/PortfolioItem" },
@@ -185,6 +301,14 @@
       "schema": { "$ref": "#/entities/Testimonial" },
       "description": "Publicly readable client testimonials; writable only by verified admins."
     },
+    "/pages/{pageId}": {
+      "schema": { "$ref": "#/entities/Page" },
+      "description": "CMS-managed pages; publicly readable when published, full access for verified admins."
+    },
+    "/mediaAssets/{assetId}": {
+      "schema": { "$ref": "#/entities/MediaAsset" },
+      "description": "Centralized media library; readable and writable only by verified admins."
+    },
     "/inquiries/{inquiryId}": {
       "schema": { "$ref": "#/entities/Inquiry" },
       "description": "PII-protected client booking inquiries. Visitors may only create with status='new'; only verified admins may read, update, or delete."
@@ -192,6 +316,10 @@
     "/admins/{uid}": {
       "schema": { "$ref": "#/entities/AdminUser" },
       "description": "Verified studio administrators; readable and writable only by verified admins."
+    },
+    "/activityLogs/{logId}": {
+      "schema": { "$ref": "#/entities/ActivityLog" },
+      "description": "Admin CMS activity logs; readable and creatable only by verified admins."
     }
   }
 }

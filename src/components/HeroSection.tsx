@@ -3,13 +3,14 @@ import { ArrowDownRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStudio } from '../context/StudioContext';
 import { isVideoUrl } from '../lib/imageUtils';
+import type { HomepageSectionConfig } from '../types/studio';
 
 interface HeroSectionProps {
-  onExplorePortfolio: () => void;
-  onBookSession: () => void;
+  sectionConfig?: HomepageSectionConfig;
+  onNavigateTarget: (target: string) => void;
 }
 
-export function HeroSection({ onExplorePortfolio, onBookSession }: HeroSectionProps) {
+export function HeroSection({ sectionConfig, onNavigateTarget }: HeroSectionProps) {
   const { siteSettings } = useStudio();
   const banners = siteSettings.heroBanners.length > 0 ? siteSettings.heroBanners : [];
   const [activeIndex, setActiveIndex] = useState(0);
@@ -35,6 +36,13 @@ export function HeroSection({ onExplorePortfolio, onBookSession }: HeroSectionPr
 
   const currentBanner = banners[activeIndex] || '';
   const isCurrentVideo = isVideoUrl(currentBanner) && !videoFailed;
+
+  const eyebrow =
+    sectionConfig?.eyebrow?.trim() || 'Photography & Visual Storytelling';
+  const primaryText = siteSettings.heroPrimaryCtaText?.trim() || 'Explore Portfolio';
+  const primaryLink = siteSettings.heroPrimaryCtaLink?.trim() || '#portfolio';
+  const secondaryText = siteSettings.heroSecondaryCtaText?.trim() || 'Book a Session';
+  const secondaryLink = siteSettings.heroSecondaryCtaLink?.trim() || '#contact';
 
   return (
     <section id="home" className="relative bg-[#0A0A0A] text-[#FAF8F5] overflow-hidden">
@@ -93,7 +101,7 @@ export function HeroSection({ onExplorePortfolio, onBookSession }: HeroSectionPr
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                 className="text-xs sm:text-sm uppercase tracking-[0.28em] text-[#D4C3AA] mb-5 font-medium"
               >
-                {siteSettings.brandName || 'TWINS'} · Photography &amp; Visual Storytelling
+                {siteSettings.brandName || 'TWINS'} · {eyebrow}
               </motion.p>
 
               <motion.h1
@@ -122,20 +130,22 @@ export function HeroSection({ onExplorePortfolio, onBookSession }: HeroSectionPr
               >
                 <button
                   type="button"
-                  onClick={onExplorePortfolio}
+                  onClick={() => onNavigateTarget(primaryLink)}
                   className="inline-flex items-center gap-2.5 px-7 py-3.5 text-xs uppercase tracking-[0.14em] font-medium bg-[#FAF8F5] text-[#0A0A0A] hover:bg-[#D4C3AA] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
-                  <span>Explore Portfolio</span>
+                  <span>{primaryText}</span>
                   <ArrowDownRight className="w-4 h-4" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={onBookSession}
-                  className="inline-flex items-center justify-center px-7 py-3.5 text-xs uppercase tracking-[0.14em] font-medium border border-[#FAF8F5]/45 text-[#FAF8F5] hover:border-[#D4C3AA] hover:text-[#D4C3AA] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  Book a Session
-                </button>
+                {secondaryText && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTarget(secondaryLink)}
+                    className="inline-flex items-center justify-center px-7 py-3.5 text-xs uppercase tracking-[0.14em] font-medium border border-[#FAF8F5]/45 text-[#FAF8F5] hover:border-[#D4C3AA] hover:text-[#D4C3AA] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    {secondaryText}
+                  </button>
+                )}
               </motion.div>
             </div>
 
