@@ -81,6 +81,9 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
     currentAdminRole,
     isCloudSeeded,
     signInWithGoogle,
+    signInWithEmail,
+    resendVerificationEmail,
+    refreshAuthUser,
     logout,
     seedDefaultCatalog,
     inquiries,
@@ -89,6 +92,10 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
 
   const [activeTab, setActiveTab] = useState<AdminTabId>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [signingInEmail, setSigningInEmail] = useState(false);
+  const [verificationMsg, setVerificationMsg] = useState('');
   const [authError, setAuthError] = useState('');
   const [seeding, setSeeding] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -121,6 +128,30 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
       await signInWithGoogle();
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'Unable to sign in with Google.');
+    }
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setSigningInEmail(true);
+    try {
+      await signInWithEmail(loginEmail, loginPassword);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unable to sign in.';
+      if (msg.includes('auth/operation-not-allowed')) {
+        setAuthError(
+          'Email/Password sign-in is not yet enabled in Firebase Console (Authentication → Sign-in method).'
+        );
+      } else if (msg.includes('auth/invalid-credential') || msg.includes('auth/user-not-found')) {
+        setAuthError(
+          'Invalid email or password, or user account has not been created in Firebase Authentication.'
+        );
+      } else {
+        setAuthError(msg);
+      }
+    } finally {
+      setSigningInEmail(false);
     }
   };
 
@@ -168,20 +199,74 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           </p>
           <h1 className="mt-3 font-editorial text-4xl text-[#FAF8F5]">Studio Admin Portal</h1>
           <p className="mt-3 text-sm leading-relaxed text-[#B8B0A4]">
-            Sign in with your authorized Google account to manage pages, homepage sections,
-            portfolios, galleries, services, SEO metadata, media assets, and client bookings.
+            Sign in with your authorized studio credentials or Google account to manage pages,
+            galleries, services, SEO metadata, and bookings.
           </p>
 
           {authError && (
-            <p className="mt-4 p-3 bg-red-950/60 border border-red-500/40 text-xs text-red-200">
+            <p className="mt-4 p-3 bg-red-950/60 border border-red-500/40 text-xs text-red-200 leading-relaxed">
               {authError}
             </p>
           )}
 
+          <form onSubmit={handleEmailSignIn} className="mt-6 space-y-4">
+            <div>
+              <label
+                htmlFor="admin-login-email"
+                className="block text-[11px] uppercase tracking-[0.14em] text-[#B8B0A4] mb-1.5"
+              >
+                Admin Email / ID
+              </label>
+              <input
+                id="admin-login-email"
+                type="email"
+                required
+                autoComplete="username"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="atelier@twins-studio.com"
+                className="w-full px-3.5 py-2.5 bg-[#0A0A0A] border border-white/20 text-sm text-[#FAF8F5] focus:border-[#D4C3AA] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="admin-login-password"
+                className="block text-[11px] uppercase tracking-[0.14em] text-[#B8B0A4] mb-1.5"
+              >
+                Password
+              </label>
+              <input
+                id="admin-login-password"
+                type="password"
+                required
+                autoComplete="current-password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Enter password"
+                className="w-full px-3.5 py-2.5 bg-[#0A0A0A] border border-white/20 text-sm text-[#FAF8F5] focus:border-[#D4C3AA] focus:outline-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={signingInEmail}
+              className="w-full py-3.5 px-6 text-xs uppercase tracking-[0.14em] font-medium bg-[#FAF8F5] text-[#0A0A0A] hover:bg-[#D4C3AA] disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {signingInEmail ? 'Signing In...' : 'Sign In With Email'}
+            </button>
+          </form>
+
+          <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-[#6E675E]">
+            <span className="flex-1 h-px bg-white/10" />
+            <span>or</span>
+            <span className="flex-1 h-px bg-white/10" />
+          </div>
+
           <button
             type="button"
             onClick={handleSignIn}
-            className="mt-8 w-full py-3.5 px-6 text-xs uppercase tracking-[0.14em] font-medium bg-[#FAF8F5] text-[#0A0A0A] hover:bg-[#D4C3AA] transition-colors cursor-pointer"
+            className="w-full py-3.5 px-6 text-xs uppercase tracking-[0.14em] font-medium border border-white/25 text-[#FAF8F5] hover:border-[#D4C3AA] hover:text-[#D4C3AA] transition-colors cursor-pointer"
           >
             Sign In With Google
           </button>
@@ -194,18 +279,64 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
     );
   }
 
-  // Signed in but not an authorized Admin
+  // Signed in but not an authorized Admin (or email unverified)
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] text-[#FAF8F5] flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full border border-white/15 bg-[#121110] p-8 text-center">
           <ShieldAlert className="w-8 h-8 text-[#D4C3AA] mx-auto mb-4" />
-          <h1 className="font-editorial text-3xl text-[#FAF8F5]">Access Restricted</h1>
+          <h1 className="font-editorial text-3xl text-[#FAF8F5]">
+            {!user.emailVerified ? 'Email Verification Required' : 'Access Restricted'}
+          </h1>
           <p className="mt-3 text-sm text-[#B8B0A4] leading-relaxed">
-            Signed in as <span className="text-[#FAF8F5] font-mono">{user.email}</span>, which is
-            not authorized as a studio administrator.
+            {!user.emailVerified ? (
+              <>
+                Signed in as <span className="text-[#FAF8F5] font-mono">{user.email}</span>, but
+                your email address is not yet verified. Firestore security rules require a verified
+                email session.
+              </>
+            ) : (
+              <>
+                Signed in as <span className="text-[#FAF8F5] font-mono">{user.email}</span>, which
+                is not yet authorized in the studio administrators list.
+              </>
+            )}
           </p>
           <p className="mt-2 text-xs font-mono text-[#8A8277]">UID: {user.uid}</p>
+
+          {verificationMsg && (
+            <p className="mt-4 p-2.5 bg-white/5 border border-white/15 text-xs text-[#D4C3AA]">
+              {verificationMsg}
+            </p>
+          )}
+
+          {!user.emailVerified && (
+            <div className="mt-5 flex flex-col sm:flex-row gap-2.5 justify-center">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await resendVerificationEmail();
+                    setVerificationMsg('Verification email sent. Check your inbox and refresh.');
+                  } catch (err) {
+                    setVerificationMsg(
+                      err instanceof Error ? err.message : 'Unable to send verification email.'
+                    );
+                  }
+                }}
+                className="px-4 py-2 text-xs uppercase tracking-[0.11em] border border-[#D4C3AA] text-[#D4C3AA] hover:bg-[#D4C3AA] hover:text-[#0A0A0A] cursor-pointer"
+              >
+                Send Verification Email
+              </button>
+              <button
+                type="button"
+                onClick={() => void refreshAuthUser()}
+                className="px-4 py-2 text-xs uppercase tracking-[0.11em] border border-white/25 text-[#FAF8F5] hover:border-white cursor-pointer"
+              >
+                Refresh Status
+              </button>
+            </div>
+          )}
 
           <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
             <button

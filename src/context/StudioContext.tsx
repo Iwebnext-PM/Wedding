@@ -2,7 +2,9 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import {
   User,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
 } from 'firebase/auth';
@@ -92,6 +94,9 @@ interface StudioContextValue {
   isAdmin: boolean;
   currentAdminRole: AdminRole;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  resendVerificationEmail: () => Promise<void>;
+  refreshAuthUser: () => Promise<void>;
   logout: () => Promise<void>;
   sendAdminPasswordReset: (email: string) => Promise<void>;
 
@@ -484,6 +489,42 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     await signInWithPopup(auth, googleProvider);
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email.trim(), password);
+  };
+
+  const resendVerificationEmail = async () => {
+    if (auth.currentUser) {
+      await sendEmailVerification(auth.currentUser);
+    }
+  };
+
+  const refreshAuthUser = async () => {
+    if (!auth.currentUser) return;
+    await auth.currentUser.reload();
+    const refreshed = auth.currentUser;
+    setUser(refreshed);
+    if (refreshed.emailVerified) {
+      if (refreshed.email === BOOTSTRAPPED_ADMIN_EMAIL) {
+        setIsAdminDocPresent(true);
+        setCurrentAdminRole('super_admin');
+      } else {
+        try {
+          const snap = await getDoc(doc(db, 'admins', refreshed.uid));
+          if (snap.exists()) {
+            setIsAdminDocPresent(true);
+            const data = snap.data() as Partial<AdminUser>;
+            setCurrentAdminRole(data.role || 'editor');
+          } else {
+            setIsAdminDocPresent(false);
+          }
+        } catch {
+          setIsAdminDocPresent(false);
+        }
+      }
+    }
   };
 
   const logout = async () => {
@@ -1104,6 +1145,9 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         isAdmin,
         currentAdminRole,
         signInWithGoogle,
+        signInWithEmail,
+        resendVerificationEmail,
+        refreshAuthUser,
         logout,
         sendAdminPasswordReset,
         seedDefaultCatalog,
